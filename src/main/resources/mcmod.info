@@ -1,0 +1,16 @@
+[
+{
+  "modid": "netherpathfinder",
+  "name": "Nether Pathfinder",
+  "description": "Example placeholder mod.",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "",
+  "updateUrl": "",
+  "authorList": ["Babbaj"],
+  "credits": "baritone",
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": []
+}
+]

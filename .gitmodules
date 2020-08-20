@@ -1,0 +1,3 @@
+[submodule "nether-pathfinder"]
+	path = nether-pathfinder
+	url = https://github.com/babbaj/nether-pathfinder
