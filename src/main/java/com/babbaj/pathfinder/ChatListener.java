@@ -139,7 +139,7 @@ public class ChatListener {
                     final BlockPos a = coords.getFirst();
                     final BlockPos b = coords.getSecond();
                     final long[] longs = PathFinder.pathFind(seed, a.getX(), a.getY(), a.getZ(), b.getX(), b.getY(), b.getZ());
-                    final List<BlockPos> path = Arrays.stream(longs).filter(l -> l != 0).mapToObj(BlockPos::fromLong).collect(Collectors.toList());
+                    final List<BlockPos> path = Arrays.stream(longs).mapToObj(BlockPos::fromLong).collect(Collectors.toList());
                     this.registerRenderer(path);
                 } catch (Exception ex) {
                     Minecraft.getMinecraft().player.sendMessage(new TextComponentString(ex.toString()));
