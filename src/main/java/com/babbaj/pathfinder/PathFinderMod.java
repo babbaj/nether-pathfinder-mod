@@ -1,6 +1,7 @@
 package com.babbaj.pathfinder;
 
-import net.minecraft.init.Blocks;
+import net.minecraft.util.math.BlockPos;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
@@ -11,6 +12,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.HashMap;
 import java.util.Objects;
 
 @Mod(modid = PathFinderMod.MODID, name = PathFinderMod.NAME, version = PathFinderMod.VERSION)
@@ -56,8 +58,7 @@ public class PathFinderMod {
     @Mod.EventHandler
     public void init(FMLInitializationEvent event)
     {
-        PathFinder.pathFind(146008555100680L, 0, 40, 0, 1000, 64, 0);
-        // some example code
-        logger.info("DIRT BLOCK >> {}", Blocks.DIRT.getRegistryName());
+        // TODO: maintain list of seeds
+        MinecraftForge.EVENT_BUS.register(new ChatListener(new HashMap<>()));
     }
 }
