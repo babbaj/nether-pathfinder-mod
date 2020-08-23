@@ -14,12 +14,17 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 public class ChatListener {
 
+    private final Executor executor = Executors.newSingleThreadExecutor();
     private final Map<String, Long> seeds;
     private PathRenderer renderer;
+    private CompletableFuture<Void> pathFuture;
 
     public ChatListener(Map<String, Long> seeds) {
         this.seeds = seeds;
@@ -83,7 +88,7 @@ public class ChatListener {
     }
 
     private void registerRenderer(List<BlockPos> path) {
-        if (this.renderer != null) MinecraftForge.EVENT_BUS.unregister(this.renderer);
+        if (this.renderer != null) disableRenderer();
 
         this.renderer = new PathRenderer(path);
         MinecraftForge.EVENT_BUS.register(this.renderer);
@@ -102,8 +107,29 @@ public class ChatListener {
         }
     }
 
+    private static void sendMessage(String str) {
+        Minecraft.getMinecraft().player.sendMessage(new TextComponentString(str));
+    }
+
+    static void checkY(int y) {
+        if (y <= 0 || y > 127) {
+            throw new IllegalArgumentException("Y level not in valid range");
+        }
+    }
+
+    private static class PathResult {
+        final List<BlockPos> path;
+        final long executionTime;
+
+        PathResult(List<BlockPos> path, long executionTime) {
+            this.path = path;
+            this.executionTime = executionTime;
+        }
+    }
+
     @SubscribeEvent
     public void onChat(ClientChatEvent event) {
+        final Minecraft mc = Minecraft.getMinecraft();
         final String msg = event.getOriginalMessage();
 
         if (msg.startsWith(";")) { // TODO custom char
@@ -117,10 +143,10 @@ public class ChatListener {
                 final String[] rawArgs = Arrays.copyOfRange(args0, 1, args0.length);
                 final OptionParser parser = new OptionParser();
                 final OptionSpec<String> seedOption = parser.accepts("seed").withRequiredArg();
-                final OptionSet options = parser.parse(rawArgs);
 
                 final List<String> args = nonOptionArgs(rawArgs);
                 try {
+                    final OptionSet options = parser.parse(rawArgs);
                     Tuple<BlockPos, BlockPos> coords = parseCoords(args);
                     final long seed;
                     if (options.has(seedOption)) {
@@ -135,16 +161,38 @@ public class ChatListener {
                         }
                     }
 
-                    // TODO: do this async
+
                     final BlockPos a = coords.getFirst();
                     final BlockPos b = coords.getSecond();
-                    final long[] longs = PathFinder.pathFind(seed, a.getX(), a.getY(), a.getZ(), b.getX(), b.getY(), b.getZ());
-                    final List<BlockPos> path = Arrays.stream(longs).mapToObj(BlockPos::fromLong).collect(Collectors.toList());
-                    this.registerRenderer(path);
+                    checkY(a.getY());
+                    checkY(b.getY());
+
+                    if (this.pathFuture != null) {
+                        this.pathFuture.cancel(true);
+                        this.pathFuture = null;
+                        sendMessage("Canceled existing pathfinder");
+                    }
+                    this.resetRenderer();
+
+                    CompletableFuture<PathResult> future = CompletableFuture.supplyAsync(() -> {
+                        final long t1 = System.currentTimeMillis();
+                        final long[] longs = PathFinder.pathFind(seed, a.getX(), a.getY(), a.getZ(), b.getX(), b.getY(), b.getZ());
+                        final long t2 = System.currentTimeMillis();
+                        List<BlockPos> path =  Arrays.stream(longs).mapToObj(BlockPos::fromLong).collect(Collectors.toList());
+                        return new PathResult(path, t2 - t1);
+                    }, this.executor);
+
+                    this.pathFuture = future.thenAccept(result -> {
+                        mc.addScheduledTask(() -> {
+                            this.registerRenderer(result.path);
+                            this.pathFuture = null;
+                            sendMessage(String.format("Found path in %.2f seconds", result.executionTime / 1000.0));
+                        });
+                    });
+
                 } catch (Exception ex) {
-                    Minecraft.getMinecraft().player.sendMessage(new TextComponentString(ex.toString()));
-                    ex.printStackTrace();
                     // input error
+                    sendMessage(ex.toString());
                 }
             }
         }
