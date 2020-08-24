@@ -30,15 +30,22 @@ public class ExamplePathfinderControl {
     private CompletableFuture<Void> pathFuture;
 
     private final Map<String, Function<OptionParser, ICommand>> commands = ImmutableMap.<String, Function<OptionParser, ICommand>>builder()
-        .put("pathfind", PathFind::new)
         .put("help", Help::new)
+        .put("pathfind", PathFind::new)
+        .put("addseed", AddSeed::new)
+        .put("cancel", Cancel::new)
+        .put("reset", Reset::new)
         .build();
 
     public ExamplePathfinderControl(Map<String, Long> seeds) {
         this.seeds = seeds;
     }
 
-    interface ICommand extends BiConsumer<List<String>, OptionSet> { }
+    // TODO: add description function
+    interface ICommand extends BiConsumer<List<String>, OptionSet> {
+        @Override
+        void accept(List<String> args, OptionSet options);
+    }
 
     private long getSeedFomOption(String arg) {
         try {
@@ -53,9 +60,13 @@ public class ExamplePathfinderControl {
         }
     }
 
-    private static Optional<String> getServerName() {
+    // might want this to only return ip
+    private static String getServerName() {
         return Optional.ofNullable(Minecraft.getMinecraft().getCurrentServerData())
-            .map(server -> !Strings.isNullOrEmpty(server.serverIP) ? server.serverIP : server.serverName);
+            .map(server -> !Strings.isNullOrEmpty(server.serverIP) ? server.serverIP : server.serverName)
+            .filter(str -> !str.isEmpty())
+            .orElse("localhost");
+            //.orElseThrow(() -> new IllegalStateException("Failed to get ip or server name"));
     }
 
     private int parseCoord(String arg, int player) throws NumberFormatException {
@@ -157,7 +168,7 @@ public class ExamplePathfinderControl {
             if (options.has(seedOption)) {
                 seed = getSeedFomOption(options.valueOf(seedOption));
             } else {
-                final String ip = getServerName().orElseThrow(() -> new IllegalStateException("failed to get ip"));
+                final String ip = getServerName();
                 final Long seedObj = seeds.get(ip);
                 if (seedObj != null) {
                     seed = seedObj;
@@ -201,10 +212,57 @@ public class ExamplePathfinderControl {
 
         @Override
         public void accept(List<String> strings, OptionSet optionSet) {
+            // TODO: print descriptions and options
             sendMessage("Commands:");
             commands.forEach((name, fn) -> {
                 sendMessage(name);
             });
+        }
+    }
+
+    private class AddSeed implements ICommand {
+        private final OptionSpec<String> ipOption;
+        public AddSeed(OptionParser parser) {
+            this.ipOption = parser.accepts("ip").withRequiredArg();
+        }
+
+        @Override
+        public void accept(List<String> args, OptionSet options) {
+            if (args.size() != 1) throw new IllegalArgumentException("Expected 1 argument");
+            final long seed = Long.parseLong(args.get(0));
+            final String ip;
+            if (options.has(ipOption)) {
+                ip = options.valueOf(ipOption);
+            } else {
+                ip = getServerName();
+            }
+            seeds.put(ip, seed);
+            sendMessage("Set seed for " + ip);
+            PathFinderMod.writeSeedsToDisk(seeds);
+        }
+    }
+
+    private class Cancel implements ICommand {
+        public Cancel(OptionParser parser) {}
+
+        @Override
+        public void accept(List<String> args, OptionSet options) {
+            if (pathFuture != null) {
+                pathFuture.cancel(true);
+                pathFuture = null;
+                sendMessage("Canceled pathfinder");
+            } else {
+                sendMessage("No pathfinder runing");
+            }
+        }
+    }
+
+    private class Reset implements ICommand {
+        public Reset(OptionParser parser) {}
+
+        @Override
+        public void accept(List<String> args, OptionSet options) {
+            resetRenderer();
         }
     }
 
