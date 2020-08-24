@@ -64,7 +64,7 @@ public class ChatListener {
     private static List<String> nonOptionArgs(String[] args) {
         List<String> out = new ArrayList<>();
         for (String arg : args) {
-            if (arg.startsWith("-")) break;
+            if (arg.startsWith("--")) break;
             out.add(arg);
         }
         return out;
@@ -133,15 +133,16 @@ public class ChatListener {
         final String msg = event.getOriginalMessage();
 
         if (msg.startsWith(";")) { // TODO custom char
+            event.setCanceled(true);
             final String cmd = msg.substring(1);
 
             final String[] args0 = cmd.split(" +");
             // TODO: more commands
             if (args0.length > 0 && args0[0].equalsIgnoreCase("pathfind")) {
-                event.setCanceled(true);
 
                 final String[] rawArgs = Arrays.copyOfRange(args0, 1, args0.length);
                 final OptionParser parser = new OptionParser();
+                parser.allowsUnrecognizedOptions();
                 final OptionSpec<String> seedOption = parser.accepts("seed").withRequiredArg();
 
                 final List<String> args = nonOptionArgs(rawArgs);

@@ -21,7 +21,7 @@ public class PathFinderMod {
         try {
             final InputStream libraryStream = PathFinder.class.getClassLoader().getResourceAsStream("native/libnether_pathfinder.dll");
             Objects.requireNonNull(libraryStream, "Failed to find pathfinder library");
-            final Path tempFile = Files.createTempFile("nether_pathfinder_temp", ".dll");
+            final Path tempFile = Files.createTempFile("libnether_pathfinder_temp", ".dll");
             System.out.println("Created temp file at " + tempFile.toAbsolutePath().toString());
             try {
                 Files.copy(libraryStream, tempFile, StandardCopyOption.REPLACE_EXISTING);
