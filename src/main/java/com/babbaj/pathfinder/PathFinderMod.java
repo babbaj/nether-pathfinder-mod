@@ -1,6 +1,5 @@
 package com.babbaj.pathfinder;
 
-import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
@@ -59,6 +58,6 @@ public class PathFinderMod {
     public void init(FMLInitializationEvent event)
     {
         // TODO: maintain list of seeds
-        MinecraftForge.EVENT_BUS.register(new ChatListener(new HashMap<>()));
+        MinecraftForge.EVENT_BUS.register(new ExamplePathfinderControl(new HashMap<>()));
     }
 }
