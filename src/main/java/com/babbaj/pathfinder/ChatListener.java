@@ -111,6 +111,10 @@ public class ChatListener {
         Minecraft.getMinecraft().player.sendMessage(new TextComponentString(str));
     }
 
+    private static void addToChatHistory(String msg) {
+        Minecraft.getMinecraft().ingameGUI.getChatGUI().addToSentMessages(msg);
+    }
+
     static void checkY(int y) {
         if (y <= 0 || y > 127) {
             throw new IllegalArgumentException("Y level not in valid range");
@@ -127,6 +131,7 @@ public class ChatListener {
         }
     }
 
+
     @SubscribeEvent
     public void onChat(ClientChatEvent event) {
         final Minecraft mc = Minecraft.getMinecraft();
@@ -134,6 +139,7 @@ public class ChatListener {
 
         if (msg.startsWith(";")) { // TODO custom char
             event.setCanceled(true);
+            addToChatHistory(msg); // forge is dumb
             final String cmd = msg.substring(1);
 
             final String[] args0 = cmd.split(" +");
