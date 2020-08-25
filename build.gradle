@@ -131,7 +131,7 @@ task cmakePathfinderLibrary(type: Exec) {
     workingDir outputDir
     final File sourceDir = new File(getProjectDir(), 'nether-pathfinder')
 
-    def cmakeArgs = [ 'cmake', sourceDir.toString(), '-G', 'Unix Makefiles', '-DSHARED_LIBRARY=True', '-DCMAKE_BUILD_TYPE=Release', '-DCMAKE_CXX_COMPILER=C:/llvm11/llvm-project/build/Release/bin/clang++.exe']
+    def cmakeArgs = ['cmake', sourceDir.toString(), '-G', 'Unix Makefiles', '-DSHARED_LIBRARY=True', '-DCMAKE_BUILD_TYPE=Release'/*, '-DCMAKE_CXX_COMPILER=C:/llvm11/llvm-project/build/Release/bin/clang++.exe'*/]
     commandLine cmakeArgs
 }
 
