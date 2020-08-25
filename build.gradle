@@ -126,7 +126,7 @@ final String compileLibraryOutput = 'compilePathfinderLibrary';
 
 task cmakePathfinderLibrary(type: Exec) {
     final File outputDir = new File(project.getBuildDir(), compileLibraryOutput)
-    outputDir.mkdir()
+    outputDir.mkdirs()
 
     workingDir outputDir
     final File sourceDir = new File(getProjectDir(), 'nether-pathfinder')
