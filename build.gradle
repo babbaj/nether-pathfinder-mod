@@ -150,6 +150,7 @@ task moveLibraryToResources(type: Copy) {
     from (new File(project.getBuildDir(), compileLibraryOutput)) {
         include '*.dll'
         include '*.so'
+        include '*.dylib'
     }
     into getResourceOutput(sourceSets.main).resolve('native')
     // TODO: also rename?

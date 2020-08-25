@@ -21,7 +21,8 @@ import java.util.Optional;
 public class PathFinderMod {
     static {
         try {
-            final InputStream libraryStream = PathFinder.class.getClassLoader().getResourceAsStream("native/libnether_pathfinder.dll");
+            final String library = System.mapLibraryName("native/libnether_pathfinder");
+            final InputStream libraryStream = PathFinder.class.getClassLoader().getResourceAsStream(library);
             Objects.requireNonNull(libraryStream, "Failed to find pathfinder library");
             final Path tempFile = Files.createTempFile("libnether_pathfinder_temp", ".dll");
             System.out.println("Created temp file at " + tempFile.toAbsolutePath().toString());
