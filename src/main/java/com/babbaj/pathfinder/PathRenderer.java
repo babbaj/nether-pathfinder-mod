@@ -1,10 +1,7 @@
 package com.babbaj.pathfinder;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.BufferBuilder;
-import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
+import net.minecraft.client.renderer.*;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
@@ -12,15 +9,48 @@ import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import org.lwjgl.opengl.GL11;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.IntBuffer;
 import java.util.List;
+
+import static org.lwjgl.opengl.GL15.*;
+
 
 public class PathRenderer {
 
-    private static final Tessellator TESSELLATOR = new Tessellator(0x200000);
     private final List<BlockPos> path;
+
+    private final int bufferId;
+    private final int numVertices;
 
     public PathRenderer(List<BlockPos> path) {
         this.path = path;
+
+        final int floatSize = 4;
+        final int vertexSize = floatSize * 3;
+        ByteBuffer buffer = GLAllocation.createDirectByteBuffer(path.size() * vertexSize);
+        for (BlockPos pos : path) {
+            buffer.putFloat(pos.getX());
+            buffer.putFloat(pos.getY());
+            buffer.putFloat(pos.getZ());
+        }
+        buffer.rewind();
+        this.bufferId = uploadBuffer(buffer);
+        this.numVertices = path.size();
+    }
+
+
+    private static int uploadBuffer(ByteBuffer buffer) {
+        IntBuffer ints = ByteBuffer.allocateDirect(4).order(ByteOrder.nativeOrder()).asIntBuffer();
+
+        glGenBuffers(ints);
+        final int id = ints.get(0);
+        OpenGlHelper.glBindBuffer(GL_ARRAY_BUFFER, id);
+        OpenGlHelper.glBufferData(GL_ARRAY_BUFFER, buffer, GL_STATIC_DRAW);
+        OpenGlHelper.glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        return id;
     }
 
     public static Vec3d getInterpolatedAmount(Entity entity, double ticks) {
@@ -39,15 +69,13 @@ public class PathRenderer {
         return Minecraft.getMinecraft().player.dimension == -1;
     }
 
-    private static void resetTranslation(float partialTicks) {
+
+    private static Vec3d getTranslation(float partialTicks) {
         Entity renderEntity = Minecraft.getMinecraft().getRenderViewEntity();
-        Vec3d translation = interpolatedPos(renderEntity, partialTicks);
-        TESSELLATOR.getBuffer().setTranslation(-translation.x, -translation.y, -translation.z);
+        return interpolatedPos(renderEntity, partialTicks);
     }
 
-    void preRender(RenderWorldLastEvent event) {
-        resetTranslation(event.getPartialTicks());
-
+    static void preRender() {
         GlStateManager.pushMatrix();
         GlStateManager.disableTexture2D();
         GlStateManager.enableBlend();
@@ -57,7 +85,7 @@ public class PathRenderer {
         GlStateManager.disableDepth();
     }
 
-    void postRender() {
+    static void postRender() {
         GlStateManager.shadeModel(GL11.GL_FLAT);
         GlStateManager.disableBlend();
         GlStateManager.enableAlpha();
@@ -67,22 +95,36 @@ public class PathRenderer {
         GlStateManager.popMatrix();
     }
 
+    private static void drawLine(int bufferId, int numVertices, float partialTicks) {
+
+        GlStateManager.color(0, 0, 1.f);
+        Vec3d translation = getTranslation(partialTicks);
+        GlStateManager.translate(-translation.x, -translation.y, -translation.z); // TODO: this probably doesnt have to be done in 1.13+
+
+        OpenGlHelper.glBindBuffer(GL_ARRAY_BUFFER, bufferId);
+        GlStateManager.glEnableClientState(GL11.GL_VERTEX_ARRAY);
+
+        GlStateManager.glVertexPointer(3, GL11.GL_FLOAT, 0, 0);
+        GlStateManager.glDrawArrays(GL11.GL_LINE_STRIP, 0, numVertices);
+
+        // post draw
+        OpenGlHelper.glBindBuffer(GL_ARRAY_BUFFER, 0);
+        GlStateManager.glDisableClientState(GL11.GL_VERTEX_ARRAY);
+        GlStateManager.resetColor(); // probably not needed
+    }
+
     @SubscribeEvent
     public void onRender(RenderWorldLastEvent event) {
         if (!isInNether()) return;
 
-        final Tessellator tessellator = TESSELLATOR;
-        final BufferBuilder builder = tessellator.getBuffer();
-
-        preRender(event);
+        preRender();
         GlStateManager.glLineWidth(1.f);
-
-        builder.begin(GL11.GL_LINE_STRIP, DefaultVertexFormats.POSITION_COLOR);
-        path.forEach(p -> {
-            builder.pos(p.getX(), p.getY(), p.getZ()).color(0, 0, 255, 255).endVertex();
-        });
-        tessellator.draw();
-
+        drawLine(this.bufferId, this.numVertices, event.getPartialTicks());
         postRender();
+    }
+
+    // Must be called before throwing away this renderer
+    public void deleteBuffer() {
+        OpenGlHelper.glDeleteBuffers(this.bufferId);
     }
 }
