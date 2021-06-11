@@ -109,8 +109,10 @@ public class ExamplePathfinderControl {
     }
 
     private void registerRenderer(List<BlockPos> path) {
-        if (this.renderer != null) disableRenderer();
-        this.renderer.deleteBuffer();
+        if (this.renderer != null) {
+            disableRenderer();
+            this.renderer.deleteBuffer();
+        }
         this.renderer = new PathRenderer(path);
         MinecraftForge.EVENT_BUS.register(this.renderer);
     }

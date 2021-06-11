@@ -21,11 +21,13 @@ import java.util.Optional;
 public class PathFinderMod {
     static {
         try {
-            final String library = System.mapLibraryName("native/libnether_pathfinder");
+            final String library = "native/" + System.mapLibraryName("nether_pathfinder");
             final InputStream libraryStream = PathFinder.class.getClassLoader().getResourceAsStream(library);
-            Objects.requireNonNull(libraryStream, "Failed to find pathfinder library");
-            final Path tempFile = Files.createTempFile("libnether_pathfinder_temp", ".dll");
-            System.out.println("Created temp file at " + tempFile.toAbsolutePath().toString());
+            Objects.requireNonNull(libraryStream, "Failed to find pathfinder library (" + library + ")");
+            final String tempName = System.mapLibraryName("nether_pathfinder_temp");
+            final String[] split = tempName.split("\\.");
+            final Path tempFile = Files.createTempFile(split[0], split[1]);
+            System.out.println("Created temp file at " + tempFile.toAbsolutePath());
             try {
                 Files.copy(libraryStream, tempFile, StandardCopyOption.REPLACE_EXISTING);
                 System.load(tempFile.toAbsolutePath().toString());

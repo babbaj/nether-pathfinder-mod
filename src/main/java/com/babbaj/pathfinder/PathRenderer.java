@@ -9,6 +9,7 @@ import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import org.lwjgl.opengl.GL11;
 
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
@@ -35,7 +36,7 @@ public class PathRenderer {
             buffer.putFloat(pos.getY());
             buffer.putFloat(pos.getZ());
         }
-        buffer.rewind();
+        ((Buffer)buffer).rewind(); // stupid no method error
         this.bufferId = uploadBuffer(buffer);
         this.numVertices = path.size();
     }
