@@ -131,7 +131,7 @@ task cmakePathfinderLibrary(type: Exec) {
     workingDir outputDir
     final File sourceDir = new File(getProjectDir(), 'nether-pathfinder')
 
-    def cmakeArgs = ['cmake', sourceDir.toString(), '-G', 'Unix Makefiles', '-DSHARED_LIBRARY=True', '-DCMAKE_BUILD_TYPE=Release']
+    def cmakeArgs = ['cmake', sourceDir.toString(), '-G', 'Unix Makefiles', '-DSHARED_LIBRARY=True', '-DCMAKE_BUILD_TYPE=Release', '-DCMAKE_C_COMPILER=/usr/local/bin/gcc-10', '-DCMAKE_CXX_COMPILER=/usr/local/bin/g++-10', '-DJAVA_HOME=/Library/Java/JavaVirtualMachines/jdk1.8.0_74.jdk/Contents/Home']
     commandLine cmakeArgs
 }
 
