@@ -3,16 +3,21 @@ buildscript {
         maven { url = 'https://files.minecraftforge.net/maven' }
         jcenter()
         mavenCentral()
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
     }
     dependencies {
-        classpath 'net.minecraftforge.gradle:ForgeGradle:3.+'
+        classpath 'net.minecraftforge.gradle:ForgeGradle:5.+'
+        classpath "de.undercouch:gradle-download-task:5.1.0"
     }
 }
-        
+
 apply plugin: 'net.minecraftforge.gradle'
 // Only edit below this line, the above code adds and enables the necessary things for Forge to be setup.
 apply plugin: 'eclipse'
 apply plugin: 'maven-publish'
+apply plugin: "de.undercouch.download"
 
 version = '1.0'
 group = 'com.babbaj.netherpathfinder'
@@ -29,7 +34,7 @@ minecraft {
     //mappings channel: 'snapshot', version: '20171003-1.12'
     mappings channel: 'snapshot', version: '20171003-1.12'
     // makeObfSourceJar = false // an Srg named sources jar is made by default. uncomment this to disable.
-    
+
     // accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
 
     // Default run configurations.
@@ -101,7 +106,7 @@ jar {
 
 // Example configuration to allow publishing using the maven-publish task
 // This is the preferred method to reobfuscate your jar file
-jar.finalizedBy('reobfJar') 
+jar.finalizedBy('reobfJar')
 // However if you are in a multi-project build, dev time needs unobfed jar files, so you can delay the obfuscation until publishing by doing
 //publish.dependsOn('reobfJar')
 
@@ -122,7 +127,54 @@ private static java.nio.file.Path getResourceOutput(SourceSet sourceSet) {
     return sourceSet.getOutput().getResourcesDir().toPath();
 }
 
+task downloadBuildTools(type: Download) {
+    src ([
+            'https://ziglang.org/download/0.9.1/zig-windows-x86_64-0.9.1.zip',
+            'https://github.com/Kitware/CMake/releases/download/v3.24.0-rc5/cmake-3.24.0-rc5-windows-x86_64.zip',
+            'https://github.com/ninja-build/ninja/releases/download/v1.11.0/ninja-win.zip'
+    ])
+    dest new File(project.getBuildDir(), "downloadBuildTools")
+    overwrite false
+}
+
+task unpackBuildTools(dependsOn: downloadBuildTools, type: Copy) {
+    fileTree(dir: downloadBuildTools.dest).each { zipFile ->
+        from zipTree(zipFile)
+    }
+    into new File(project.getBuildDir(), "unpackedBuildTools")
+
+    doLast { t ->
+        def base = t.outputs.files.getSingleFile().toPath()
+        Files.write(base.resolve("zigcc.bat"), ("@echo off\n" + getWintardZig().absolutePath + " \"cc\" %*").getBytes())
+        Files.write(base.resolve("zigcpp.bat"), ("@echo off\n" + getWintardZig().absolutePath + " \"c++\" %*").getBytes())
+    }
+}
+
+def getWintardCmake() {
+    return new File(unpackBuildTools.outputs.files.getSingleFile(), "cmake-3.24.0-rc5-windows-x86_64/bin/cmake.exe")
+}
+
+def getWintardNinja() {
+    return new File(unpackBuildTools.outputs.files.getSingleFile(), "ninja.exe")
+}
+
+def getWintardZig() {
+    return new File(unpackBuildTools.outputs.files.getSingleFile(), "zig-windows-x86_64-0.9.1/zig.exe")
+}
+
+def getWintardZigCC() {
+    return new File(unpackBuildTools.outputs.files.getSingleFile(), "zigcc.bat")
+}
+
+def getWintardZigCXX() {
+    return new File(unpackBuildTools.outputs.files.getSingleFile(), "zigcpp.bat")
+}
+
 final String compileLibraryOutput = 'compilePathfinderLibrary';
+
+import org.apache.tools.ant.taskdefs.condition.Os
+
+import java.nio.file.Files
 
 task cmakePathfinderLibrary(type: Exec) {
     final File outputDir = new File(project.getBuildDir(), compileLibraryOutput)
@@ -131,7 +183,29 @@ task cmakePathfinderLibrary(type: Exec) {
     workingDir outputDir
     final File sourceDir = new File(getProjectDir(), 'nether-pathfinder')
 
-    def cmakeArgs = ['cmake', sourceDir.toString(), '-G', 'Unix Makefiles', '-DSHARED_LIBRARY=True', '-DCMAKE_BUILD_TYPE=Release']
+    String cmakeExe
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+        dependsOn unpackBuildTools
+        cmakeExe = getWintardCmake().toString()
+    } else {
+        cmakeExe = 'cmake' // $PATH
+    }
+
+    def cmakeArgs = [
+            cmakeExe, sourceDir.toString(),
+            '-G', 'Ninja'
+    ]
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+        cmakeArgs.addAll([
+                '-DCMAKE_MAKE_PROGRAM=' + getWintardNinja().toString(),
+                '-DCMAKE_C_COMPILER=' + getWintardZigCC().toString().replace('\\', '/'),
+                '-DCMAKE_CXX_COMPILER=' + getWintardZigCXX().toString().replace('\\', '/')
+        ])
+    }
+    cmakeArgs.addAll([
+            '-DSHARED_LIBRARY=True',
+            '-DCMAKE_BUILD_TYPE=Release'
+    ])
     commandLine cmakeArgs
 }
 
@@ -141,7 +215,13 @@ task makePathfinderLibrary(type: Exec) {
     final File outputDir = new File(project.getBuildDir(), compileLibraryOutput)
 
     workingDir outputDir
-    commandLine 'make', '-j', Runtime.getRuntime().availableProcessors();
+    String ninjaExe;
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+        ninjaExe = getWintardNinja()
+    } else {
+        ninjaExe = 'ninja' // $PATH
+    }
+    commandLine ninjaExe, '-j', Runtime.getRuntime().availableProcessors()
 }
 
 task moveLibraryToResources(type: Copy) {
