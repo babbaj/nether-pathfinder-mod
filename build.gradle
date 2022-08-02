@@ -138,9 +138,10 @@ task downloadBuildTools(type: Download) {
 }
 
 task unpackBuildTools(dependsOn: downloadBuildTools, type: Copy) {
-    fileTree(dir: downloadBuildTools.dest).each { zipFile ->
-        from zipTree(zipFile)
-    }
+    from zipTree(new File(downloadBuildTools.dest, 'cmake-3.24.0-rc5-windows-x86_64.zip'))
+    from zipTree(new File(downloadBuildTools.dest, 'ninja-win.zip'))
+    from zipTree(new File(downloadBuildTools.dest, 'zig-windows-x86_64-0.9.1.zip'))
+
     into new File(project.getBuildDir(), "unpackedBuildTools")
 
     doLast { t ->
