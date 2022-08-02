@@ -201,6 +201,9 @@ task cmakePathfinderLibrary(type: Exec) {
                 '-DCMAKE_C_COMPILER=' + getWintardZigCC().toString().replace('\\', '/'),
                 '-DCMAKE_CXX_COMPILER=' + getWintardZigCXX().toString().replace('\\', '/')
         ])
+    } else {
+        // abseil doesnt work on windows because of a pthread issue, might possibly be already fixed upstream
+        cmakeArgs.add('-DUSE_ABSEIL=True')
     }
     cmakeArgs.addAll([
             '-DSHARED_LIBRARY=True',
