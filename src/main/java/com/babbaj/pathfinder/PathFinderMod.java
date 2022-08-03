@@ -21,7 +21,9 @@ import java.util.Optional;
 public class PathFinderMod {
     static {
         try {
-            final String library = "native/" + System.mapLibraryName("nether_pathfinder");
+            final String lol = System.mapLibraryName("uwu");
+            final String extension = lol.substring(lol.lastIndexOf('.'));
+            final String library = "native/" + "libnether_pathfinder" + extension;
             final InputStream libraryStream = PathFinder.class.getClassLoader().getResourceAsStream(library);
             Objects.requireNonNull(libraryStream, "Failed to find pathfinder library (" + library + ")");
             final String tempName = System.mapLibraryName("nether_pathfinder_temp");
