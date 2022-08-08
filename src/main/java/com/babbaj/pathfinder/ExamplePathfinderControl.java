@@ -15,19 +15,17 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class ExamplePathfinderControl {
 
-    private final Executor executor = Executors.newSingleThreadExecutor();
+    private final ExecutorService executor = Executors.newCachedThreadPool();
     private final Map<String, Long> seeds;
     private PathRenderer renderer;
-    private CompletableFuture<Void> pathFuture;
+    private Future<?> pathFuture;
 
     private final Map<String, Function<OptionParser, ICommand>> commands = ImmutableMap.<String, Function<OptionParser, ICommand>>builder()
         .put("help", Help::new)
@@ -80,15 +78,6 @@ public class ExamplePathfinderControl {
     private BlockPos parsePosition(String x, String y, String z) {
         final Entity player = Minecraft.getMinecraft().player;
         return new BlockPos(parseCoord(x, (int)player.posX), parseCoord(y, (int)player.posY), parseCoord(z, (int)player.posZ));
-    }
-
-    private static List<String> nonOptionArgs(String[] args) {
-        List<String> out = new ArrayList<>();
-        for (String arg : args) {
-            if (arg.startsWith("--")) break;
-            out.add(arg);
-        }
-        return out;
     }
 
     private Tuple<BlockPos, BlockPos> parseCoords(List<String> args) throws IllegalArgumentException {
@@ -192,19 +181,20 @@ public class ExamplePathfinderControl {
             }
             resetRenderer();
 
-            CompletableFuture<PathResult> future = CompletableFuture.supplyAsync(() -> {
+            pathFuture = executor.submit(() -> {
                 final long t1 = System.currentTimeMillis();
-                final long[] longs = PathFinder.pathFind(seed, a.getX(), a.getY(), a.getZ(), b.getX(), b.getY(), b.getZ());
+                final long[] longs = PathFinder.pathFind(seed, true, a.getX(), a.getY(), a.getZ(), b.getX(), b.getY(), b.getZ());
+                // TODO: native code should check the interrupt flag and throw InterruptedException
+                if (Thread.currentThread().isInterrupted()) {
+                    return;
+                }
                 final long t2 = System.currentTimeMillis();
-                List<BlockPos> path =  Arrays.stream(longs).mapToObj(BlockPos::fromLong).collect(Collectors.toList());
-                return new PathResult(path, t2 - t1);
-            }, executor);
+                final List<BlockPos> path =  Arrays.stream(longs).mapToObj(BlockPos::fromLong).collect(Collectors.toList());
 
-            pathFuture = future.thenAccept(result -> {
                 mc.addScheduledTask(() -> {
-                    registerRenderer(result.path);
+                    registerRenderer(path);
                     pathFuture = null;
-                    sendMessage(String.format("Found path in %.2f seconds", result.executionTime / 1000.0));
+                    sendMessage(String.format("Found path in %.2f seconds", (t2 - t1) / 1000.0));
                 });
             });
         }
@@ -283,13 +273,13 @@ public class ExamplePathfinderControl {
             if (args0.length > 0) {
                 Function<OptionParser, ICommand> command = commands.get(args0[0].toLowerCase());
                 if (command != null) {
-                    final String[] rawArgs = Arrays.copyOfRange(args0, 1, args0.length);
-                    final List<String> args = nonOptionArgs(rawArgs);
+                    final String[] args = Arrays.copyOfRange(args0, 1, args0.length);
                     final OptionParser parser = new OptionParser();
                     parser.allowsUnrecognizedOptions();
                     try {
-                        ICommand consumer = command.apply(parser);
-                        consumer.accept(args, parser.parse(rawArgs));
+                        final ICommand consumer = command.apply(parser);
+                        final OptionSet opts = parser.parse(args);
+                        consumer.accept((List<String>) opts.nonOptionArguments(), opts);
                     } catch (Exception ex) {
                         // input error
                         sendMessage(ex.toString());
