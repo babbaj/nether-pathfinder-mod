@@ -134,21 +134,12 @@ public class ExamplePathfinderControl {
         }
     }
 
-    private static class PathResult {
-        final List<BlockPos> path;
-        final long executionTime;
-
-        PathResult(List<BlockPos> path, long executionTime) {
-            this.path = path;
-            this.executionTime = executionTime;
-        }
-    }
-
     private class PathFind implements ICommand {
         private final OptionSpec<String> seedOption;
 
         PathFind(OptionParser parser) {
             this.seedOption = parser.accepts("seed").withRequiredArg();
+            parser.accepts("fine", "high resolution but slower pathfinding");
         }
 
         @Override
@@ -183,7 +174,7 @@ public class ExamplePathfinderControl {
 
             pathFuture = executor.submit(() -> {
                 final long t1 = System.currentTimeMillis();
-                final long[] longs = PathFinder.pathFind(seed, true, a.getX(), a.getY(), a.getZ(), b.getX(), b.getY(), b.getZ());
+                final long[] longs = PathFinder.pathFind(seed, options.has("fine"), a.getX(), a.getY(), a.getZ(), b.getX(), b.getY(), b.getZ());
                 // TODO: native code should check the interrupt flag and throw InterruptedException
                 if (Thread.currentThread().isInterrupted()) {
                     return;
