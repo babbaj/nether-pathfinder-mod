@@ -258,7 +258,6 @@ public class ExamplePathfinderControl {
             event.setCanceled(true);
             addToChatHistory(msg); // forge is dumb
             final String cmd = msg.substring(1);
-
             final String[] args0 = cmd.split(" +");
 
             if (args0.length > 0) {

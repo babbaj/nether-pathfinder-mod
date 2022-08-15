@@ -203,6 +203,8 @@ task cmakePathfinderLibrary(type: Exec) {
                 '-DCMAKE_CXX_COMPILER=' + getWintardZigCXX().toString().replace('\\', '/')
         ])
     } else {
+        cmakeArgs.add("-DCMAKE_CXX_COMPILER=clang++")
+        cmakeArgs.add("-DCMAKE_C_COMPILER=clang") // not used
         // abseil doesnt work on windows because of a pthread issue, might possibly be already fixed upstream
         cmakeArgs.add('-DUSE_ABSEIL=True')
     }
