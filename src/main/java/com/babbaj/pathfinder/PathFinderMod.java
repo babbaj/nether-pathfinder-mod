@@ -28,7 +28,7 @@ public class PathFinderMod {
             Objects.requireNonNull(libraryStream, "Failed to find pathfinder library (" + library + ")");
             final String tempName = System.mapLibraryName("nether_pathfinder_temp");
             final String[] split = tempName.split("\\.");
-            final Path tempFile = Files.createTempFile(split[0], split[1]);
+            final Path tempFile = Files.createTempFile(split[0], "." + split[1]);
             System.out.println("Created temp file at " + tempFile.toAbsolutePath());
             try {
                 Files.copy(libraryStream, tempFile, StandardCopyOption.REPLACE_EXISTING);
