@@ -140,6 +140,7 @@ public class ExamplePathfinderControl {
         PathFind(OptionParser parser) {
             this.seedOption = parser.accepts("seed").withRequiredArg();
             parser.accepts("fine", "high resolution but slower pathfinding");
+            parser.accepts("noraytrace", "do not raytrace the result of the pathfinder");
         }
 
         @Override
@@ -174,7 +175,7 @@ public class ExamplePathfinderControl {
 
             pathFuture = executor.submit(() -> {
                 final long t1 = System.currentTimeMillis();
-                final long[] longs = PathFinder.pathFind(seed, options.has("fine"), a.getX(), a.getY(), a.getZ(), b.getX(), b.getY(), b.getZ());
+                final long[] longs = PathFinder.pathFind(seed, options.has("fine"), !options.has("noraytrace"), a.getX(), a.getY(), a.getZ(), b.getX(), b.getY(), b.getZ());
                 // TODO: native code should check the interrupt flag and throw InterruptedException
                 if (Thread.currentThread().isInterrupted()) {
                     return;
