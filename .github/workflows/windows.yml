@@ -1,0 +1,15 @@
+name: "nether pathfinder mod windows"
+on:
+  pull_request:
+  push:
+jobs:
+  tests:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin' # See 'Supported distributions' for available options
+          java-version: '17'
+      - uses: actions/checkout@v2.3.4
+      - run: git submodule update --init --recursive
+      - run: gradlew.bat build
