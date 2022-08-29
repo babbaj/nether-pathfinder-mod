@@ -147,7 +147,7 @@ public class ExamplePathfinderControl {
 
         @Override
         public String description() {
-            return "Run the pathfinder (prepend '~' for relative coords";
+            return "Run the pathfinder (prepend '~' for relative coords)";
         }
 
         @Override
