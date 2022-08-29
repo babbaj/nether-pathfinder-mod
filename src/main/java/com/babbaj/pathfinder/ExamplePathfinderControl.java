@@ -2,9 +2,7 @@ package com.babbaj.pathfinder;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
-import joptsimple.OptionParser;
-import joptsimple.OptionSet;
-import joptsimple.OptionSpec;
+import joptsimple.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.Tuple;
@@ -43,6 +41,10 @@ public class ExamplePathfinderControl {
     interface ICommand extends BiConsumer<List<String>, OptionSet> {
         @Override
         void accept(List<String> args, OptionSet options);
+
+        String description();
+        List<String> usage();
+        default List<String> optionHelp() { return Collections.emptyList(); };
     }
 
     private long getSeedFomOption(String arg) {
@@ -138,9 +140,31 @@ public class ExamplePathfinderControl {
         private final OptionSpec<String> seedOption;
 
         PathFind(OptionParser parser) {
-            this.seedOption = parser.accepts("seed").withRequiredArg();
-            parser.accepts("fine", "high resolution but slower pathfinding");
-            parser.accepts("noraytrace", "do not raytrace the result of the pathfinder");
+            this.seedOption = parser.accepts("seed").withRequiredArg().defaultsTo("146008555100680");
+            parser.accepts("fine");
+            parser.accepts("noraytrace");
+        }
+
+        @Override
+        public String description() {
+            return "Run the pathfinder (prepend '~' for relative coords";
+        }
+
+        @Override
+        public List<String> usage() {
+            return Arrays.asList(
+                    "<x> <y> <z> <x> <y> <z>",
+                    "<x> <y> <z>"
+            );
+        }
+
+        @Override
+        public List<String> optionHelp() {
+            return Arrays.asList(
+                "--seed  (default: 146008555100680)",
+                "--noraytrace  do not raytrace the result of the pathfinder",
+                "--fine  high resolution but slower pathfinding"
+            );
         }
 
         @Override
@@ -196,12 +220,18 @@ public class ExamplePathfinderControl {
         public Help(OptionParser parser) {}
 
         @Override
+        public String description() {
+            return "Print this message";
+        }
+
+        @Override
+        public List<String> usage() {
+            return Collections.emptyList();
+        }
+
+        @Override
         public void accept(List<String> strings, OptionSet optionSet) {
-            // TODO: print descriptions and options
-            sendMessage("Commands:");
-            commands.forEach((name, fn) -> {
-                sendMessage(name);
-            });
+            printHelp();
         }
     }
 
@@ -209,6 +239,23 @@ public class ExamplePathfinderControl {
         private final OptionSpec<String> ipOption;
         public AddSeed(OptionParser parser) {
             this.ipOption = parser.accepts("ip").withRequiredArg();
+        }
+
+        @Override
+        public String description() {
+            return "Set the seed for the current server";
+        }
+
+        @Override
+        public List<String> usage() {
+            return Collections.singletonList("<seed>");
+        }
+
+        @Override
+        public List<String> optionHelp() {
+            return Arrays.asList(
+                "--ip <String>"
+            );
         }
 
         @Override
@@ -231,6 +278,16 @@ public class ExamplePathfinderControl {
         public Cancel(OptionParser parser) {}
 
         @Override
+        public String description() {
+            return "Stop the current pathfinding thread (will still run in the background)";
+        }
+
+        @Override
+        public List<String> usage() {
+            return Collections.emptyList();
+        }
+
+        @Override
         public void accept(List<String> args, OptionSet options) {
             if (pathFuture != null) {
                 pathFuture.cancel(true);
@@ -246,9 +303,35 @@ public class ExamplePathfinderControl {
         public Reset(OptionParser parser) {}
 
         @Override
+        public String description() {
+            return "Stop rendering the path";
+        }
+
+        @Override
+        public List<String> usage() {
+            return Collections.emptyList();
+        }
+
+        @Override
         public void accept(List<String> args, OptionSet options) {
             resetRenderer();
         }
+    }
+
+    void printHelp() {
+        sendMessage("Commands:");
+        commands.forEach((cmd, fn) -> {
+            final OptionParser parser = new OptionParser();
+            final ICommand icmd = fn.apply(parser);
+            sendMessage(cmd + ": " + icmd.description());
+            for (String usage : icmd.usage()) {
+                sendMessage(";" + cmd + " " + usage);
+            }
+            for (String line : icmd.optionHelp()) {
+                sendMessage(line);
+            }
+            sendMessage("");
+        });
     }
 
     @SubscribeEvent
@@ -258,28 +341,32 @@ public class ExamplePathfinderControl {
         if (msg.startsWith(";")) { // TODO customizable char
             event.setCanceled(true);
             addToChatHistory(msg); // forge is dumb
-            final String cmd = msg.substring(1);
-            final String[] args0 = cmd.split(" +");
+            if (msg.length() > 1) {
+                final String cmd = msg.substring(1);
+                final String[] args0 = cmd.split(" +");
 
-            if (args0.length > 0) {
-                Function<OptionParser, ICommand> command = commands.get(args0[0].toLowerCase());
-                if (command != null) {
-                    final String[] args = Arrays.copyOfRange(args0, 1, args0.length);
-                    final OptionParser parser = new OptionParser();
-                    parser.allowsUnrecognizedOptions();
-                    try {
-                        final ICommand consumer = command.apply(parser);
-                        final OptionSet opts = parser.parse(args);
-                        consumer.accept((List<String>) opts.nonOptionArguments(), opts);
-                    } catch (Exception ex) {
-                        // input error
-                        sendMessage(ex.toString());
-                        // print stacktrace in case it's a bug
-                        ex.printStackTrace();
+                if (args0.length > 0) {
+                    Function<OptionParser, ICommand> command = commands.get(args0[0].toLowerCase());
+                    if (command != null) {
+                        final String[] args = Arrays.copyOfRange(args0, 1, args0.length);
+                        final OptionParser parser = new OptionParser();
+                        parser.allowsUnrecognizedOptions();
+                        try {
+                            final ICommand consumer = command.apply(parser);
+                            final OptionSet opts = parser.parse(args);
+                            consumer.accept((List<String>) opts.nonOptionArguments(), opts);
+                        } catch (Exception ex) {
+                            // input error
+                            sendMessage(ex.toString());
+                            // print stacktrace in case it's a bug
+                            ex.printStackTrace();
+                        }
+                    } else {
+                        sendMessage("Invalid command");
                     }
-                } else {
-                    sendMessage("Invalid command");
                 }
+            } else {
+                printHelp();
             }
         }
     }
