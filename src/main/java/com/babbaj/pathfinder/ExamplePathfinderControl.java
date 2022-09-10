@@ -140,7 +140,7 @@ public class ExamplePathfinderControl {
         private final OptionSpec<String> seedOption;
 
         PathFind(OptionParser parser) {
-            this.seedOption = parser.accepts("seed").withRequiredArg().defaultsTo("146008555100680");
+            this.seedOption = parser.accepts("seed").withRequiredArg().defaultsTo("1434823964849314312");
             parser.accepts("fine");
             parser.accepts("noraytrace");
         }
@@ -161,7 +161,7 @@ public class ExamplePathfinderControl {
         @Override
         public List<String> optionHelp() {
             return Arrays.asList(
-                "--seed  (default: 146008555100680)",
+                "--seed  (default: 1434823964849314312)",
                 "--noraytrace  do not raytrace the result of the pathfinder",
                 "--fine  high resolution but slower pathfinding"
             );
