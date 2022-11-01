@@ -213,6 +213,7 @@ task cmakePathfinderLibrary(type: Exec) {
             '-DCMAKE_BUILD_TYPE=Release'
     ])
     commandLine cmakeArgs
+    environment("CXXFLAGS", "-march=x86_64_v2") // "drop in replacement"
 }
 
 task makePathfinderLibrary(type: Exec) {
