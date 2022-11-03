@@ -35,6 +35,7 @@ public class ExamplePathfinderControl {
 
     public ExamplePathfinderControl(Map<String, Long> seeds) {
         this.seeds = seeds;
+        this.seeds.putIfAbsent("2b2t.org", 146008555100680L);
     }
 
     // TODO: add description function
@@ -161,7 +162,7 @@ public class ExamplePathfinderControl {
         @Override
         public List<String> optionHelp() {
             return Arrays.asList(
-                "--seed  (default: 146008555100680)",
+                "--seed <seed>",
                 "--noraytrace  do not raytrace the result of the pathfinder",
                 "--fine  high resolution but slower pathfinding"
             );
@@ -181,7 +182,8 @@ public class ExamplePathfinderControl {
                 if (seedObj != null) {
                     seed = seedObj;
                 } else {
-                    throw new IllegalArgumentException("No seed for server \"" + ip + "\"");
+                    sendMessage("No seed for server \"" + ip + "\", defaulting to 2b2t");
+                    seed = 146008555100680L;
                 }
             }
 
