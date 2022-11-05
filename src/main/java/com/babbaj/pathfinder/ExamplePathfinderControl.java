@@ -195,6 +195,7 @@ public class ExamplePathfinderControl {
             if (pathFuture != null) {
                 pathFuture.cancel(true);
                 pathFuture = null;
+                PathFinder.cancel();
                 sendMessage("Canceled existing pathfinder");
             }
             resetRenderer();
@@ -202,18 +203,20 @@ public class ExamplePathfinderControl {
             pathFuture = executor.submit(() -> {
                 final long t1 = System.currentTimeMillis();
                 final long[] longs = PathFinder.pathFind(seed, options.has("fine"), !options.has("noraytrace"), a.getX(), a.getY(), a.getZ(), b.getX(), b.getY(), b.getZ());
-                // TODO: native code should check the interrupt flag and throw InterruptedException
                 if (Thread.currentThread().isInterrupted()) {
                     return;
                 }
                 final long t2 = System.currentTimeMillis();
-                final List<BlockPos> path =  Arrays.stream(longs).mapToObj(BlockPos::fromLong).collect(Collectors.toList());
-
-                mc.addScheduledTask(() -> {
-                    registerRenderer(path);
-                    pathFuture = null;
-                    sendMessage(String.format("Found path in %.2f seconds", (t2 - t1) / 1000.0));
-                });
+                if (longs != null) {
+                    final List<BlockPos> path =  Arrays.stream(longs).mapToObj(BlockPos::fromLong).collect(Collectors.toList());
+                    mc.addScheduledTask(() -> {
+                        registerRenderer(path);
+                        pathFuture = null;
+                        sendMessage(String.format("Found path in %.2f seconds", (t2 - t1) / 1000.0));
+                    });
+                } else {
+                    sendMessage("Path finder returned null");
+                }
             });
         }
     }
@@ -294,6 +297,7 @@ public class ExamplePathfinderControl {
             if (pathFuture != null) {
                 pathFuture.cancel(true);
                 pathFuture = null;
+                PathFinder.cancel();
                 sendMessage("Canceled pathfinder");
             } else {
                 sendMessage("No pathfinder runing");
