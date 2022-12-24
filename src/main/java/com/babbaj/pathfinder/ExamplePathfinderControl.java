@@ -36,6 +36,7 @@ public class ExamplePathfinderControl {
     public ExamplePathfinderControl(Map<String, Long> seeds) {
         this.seeds = seeds;
         this.seeds.putIfAbsent("connect.2b2t.org", 146008555100680L);
+        this.seeds.putIfAbsent("2b2t.org", 146008555100680L);
     }
 
     // TODO: add description function
