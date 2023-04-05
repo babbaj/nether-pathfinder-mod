@@ -25,16 +25,19 @@ public class PathRenderer {
     private final int bufferId;
     private final int numVertices;
 
+    private Vec3d currentOrigin;
+
     public PathRenderer(List<BlockPos> path) {
         this.path = path;
+        this.currentOrigin = Minecraft.getMinecraft().getRenderViewEntity().getPositionVector();
 
         final int floatSize = 4;
         final int vertexSize = floatSize * 3;
         ByteBuffer buffer = GLAllocation.createDirectByteBuffer(path.size() * vertexSize);
         for (BlockPos pos : path) {
-            buffer.putFloat(pos.getX());
-            buffer.putFloat(pos.getY());
-            buffer.putFloat(pos.getZ());
+            buffer.putFloat((float) (pos.getX() - this.currentOrigin.x));
+            buffer.putFloat((float) (pos.getY() - this.currentOrigin.y));
+            buffer.putFloat((float) (pos.getZ() - this.currentOrigin.z));
         }
         ((Buffer)buffer).rewind(); // stupid no method error
         this.bufferId = uploadBuffer(buffer);
@@ -96,11 +99,10 @@ public class PathRenderer {
         GlStateManager.popMatrix();
     }
 
-    private static void drawLine(int bufferId, int numVertices, float partialTicks) {
-
+    private void drawLine(int bufferId, int numVertices, float partialTicks) {
         GlStateManager.color(0, 0, 1.f);
-        Vec3d translation = getTranslation(partialTicks);
-        GlStateManager.translate(-translation.x, -translation.y, -translation.z); // TODO: this probably doesnt have to be done in 1.13+
+        Vec3d translation = getTranslation(partialTicks).subtract(this.currentOrigin);
+        GlStateManager.translate(-translation.x, -translation.y, -translation.z);
 
         OpenGlHelper.glBindBuffer(GL_ARRAY_BUFFER, bufferId);
         GlStateManager.glEnableClientState(GL11.GL_VERTEX_ARRAY);
