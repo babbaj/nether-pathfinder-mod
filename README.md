@@ -1,5 +1,5 @@
 # Nether Pathfinder Mod
-Forge mod that provides a command like interface and renderer for [Nether Pathfinder](https://github.com/babbaj/nether-pathfinder).
+Forge mod that provides a command line interface and renderer for [Nether Pathfinder](https://github.com/babbaj/nether-pathfinder).
 
 https://www.youtube.com/watch?v=ZvwEgLHpX9o
 
