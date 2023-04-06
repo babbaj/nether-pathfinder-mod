@@ -19,16 +19,11 @@ import static org.lwjgl.opengl.GL15.*;
 
 
 public class PathRenderer {
-
-    private final List<BlockPos> path;
-
     private final int bufferId;
     private final int numVertices;
-
     private final Vec3d origin;
 
     public PathRenderer(List<BlockPos> path) {
-        this.path = path;
         this.origin = Minecraft.getMinecraft().getRenderViewEntity().getPositionVector();
 
         final int floatSize = 4;

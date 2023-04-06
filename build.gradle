@@ -21,7 +21,7 @@ apply plugin: "de.undercouch.download"
 
 version = '1.0'
 group = 'com.babbaj.netherpathfinder'
-archivesBaseName = 'nether-pathfinder-mod'
+archivesBaseName = 'nether-pathfinder'
 
 sourceCompatibility = targetCompatibility = compileJava.sourceCompatibility = compileJava.targetCompatibility = '1.8' // Need this here so eclipse task generates correctly.
 
@@ -91,7 +91,7 @@ dependencies {
 jar {
     manifest {
         attributes([
-            "Specification-Title": "nether-pathfinder-mod",
+            "Specification-Title": "nether-pathfinder",
             "Specification-Vendor": "uwu",
             "Specification-Version": "1", // We are version 1 of ourselves
             "Implementation-Title": project.name,
