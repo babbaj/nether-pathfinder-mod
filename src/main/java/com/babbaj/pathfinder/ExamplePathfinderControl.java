@@ -149,7 +149,7 @@ public class ExamplePathfinderControl {
     private static List<String> pathfindHelp() {
         return Arrays.asList(
                 "--seed <seed>",
-                "--noraytrace  do not raytrace the result of the pathfinder",
+                "--noraytrace  do not simplify the result of the pathfinder",
                 "--fine  high resolution but slower pathfinding"
         );
     }

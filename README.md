@@ -18,6 +18,12 @@ pathfind: Run the pathfinder (prepend '~' for relative coords)
 --noraytrace  do not simplify the result of the pathfinder
 --fine  high resolution but slower pathfinding
 
+thisway: Pathfind n blocks in the current direction
+;thisway <distance>
+--seed <seed>
+--noraytrace  do not simplify the result of the pathfinder
+--fine  high resolution but slower pathfinding
+
 addseed: Set the seed for the current server
 ;addseed <seed>
 --ip <String>
