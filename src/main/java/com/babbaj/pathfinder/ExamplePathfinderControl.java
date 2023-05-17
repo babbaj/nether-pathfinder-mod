@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.Tuple;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraftforge.client.event.ClientChatEvent;
 import net.minecraftforge.common.MinecraftForge;
@@ -28,6 +29,7 @@ public class ExamplePathfinderControl {
     private final Map<String, Function<OptionParser, ICommand>> commands = ImmutableMap.<String, Function<OptionParser, ICommand>>builder()
         .put("help", Help::new)
         .put("pathfind", PathFind::new)
+        .put("thisway", Thisway::new)
         .put("addseed", AddSeed::new)
         .put("cancel", Cancel::new)
         .put("reset", Reset::new)
@@ -138,13 +140,72 @@ public class ExamplePathfinderControl {
         }
     }
 
-    private class PathFind implements ICommand {
-        private final OptionSpec<String> seedOption;
+    private static void acceptPathfindFlags(OptionParser parser) {
+        parser.accepts("seed").withRequiredArg();
+        parser.accepts("fine");
+        parser.accepts("noraytrace");
+    }
 
+    private static List<String> pathfindHelp() {
+        return Arrays.asList(
+                "--seed <seed>",
+                "--noraytrace  do not raytrace the result of the pathfinder",
+                "--fine  high resolution but slower pathfinding"
+        );
+    }
+
+    private long getSeed(OptionSet options) {
+        final long seed;
+        if (options.has("seed")) {
+           return getSeedFomOption((String) options.valueOf("seed"));
+        } else {
+            final String ip = getServerName();
+            final Long seedObj = seeds.get(ip);
+            if (seedObj != null) {
+                return seedObj;
+            } else {
+                sendMessage("No seed for server \"" + ip + "\", defaulting to 2b2t");
+                return 146008555100680L;
+            }
+        }
+    }
+
+    private void startPathFinder(OptionSet options, BlockPos start, BlockPos end) {
+        checkY(start.getY());
+        checkY(end.getY());
+        final long seed = getSeed(options);
+
+        if (pathFuture != null) {
+            pathFuture.cancel(true);
+            pathFuture = null;
+            PathFinder.cancel();
+            sendMessage("Canceled existing pathfinder");
+        }
+        resetRenderer();
+
+        pathFuture = executor.submit(() -> {
+            final long t1 = System.currentTimeMillis();
+            final long[] longs = PathFinder.pathFind(seed, options.has("fine"), !options.has("noraytrace"), start.getX(), start.getY(), start.getZ(), end.getX(), end.getY(), end.getZ());
+            if (Thread.currentThread().isInterrupted()) {
+                return;
+            }
+            final long t2 = System.currentTimeMillis();
+            if (longs != null) {
+                final List<BlockPos> path =  Arrays.stream(longs).mapToObj(BlockPos::fromLong).collect(Collectors.toList());
+                Minecraft.getMinecraft().addScheduledTask(() -> {
+                    registerRenderer(path);
+                    pathFuture = null;
+                    sendMessage(String.format("Found path in %.2f seconds", (t2 - t1) / 1000.0));
+                });
+            } else {
+                sendMessage("Path finder returned null");
+            }
+        });
+    }
+
+    private class PathFind implements ICommand {
         PathFind(OptionParser parser) {
-            this.seedOption = parser.accepts("seed").withRequiredArg().defaultsTo("146008555100680");
-            parser.accepts("fine");
-            parser.accepts("noraytrace");
+            acceptPathfindFlags(parser);
         }
 
         @Override
@@ -162,63 +223,49 @@ public class ExamplePathfinderControl {
 
         @Override
         public List<String> optionHelp() {
-            return Arrays.asList(
-                "--seed <seed>",
-                "--noraytrace  do not raytrace the result of the pathfinder",
-                "--fine  high resolution but slower pathfinding"
-            );
+            return pathfindHelp();
         }
 
         @Override
         public void accept(List<String> args, OptionSet options) {
-            final Minecraft mc = Minecraft.getMinecraft();
-
             Tuple<BlockPos, BlockPos> coords = parseCoords(args);
-            final long seed;
-            if (options.has(seedOption)) {
-                seed = getSeedFomOption(options.valueOf(seedOption));
-            } else {
-                final String ip = getServerName();
-                final Long seedObj = seeds.get(ip);
-                if (seedObj != null) {
-                    seed = seedObj;
-                } else {
-                    sendMessage("No seed for server \"" + ip + "\", defaulting to 2b2t");
-                    seed = 146008555100680L;
-                }
-            }
 
             final BlockPos a = coords.getFirst();
             final BlockPos b = coords.getSecond();
-            checkY(a.getY());
-            checkY(b.getY());
+            startPathFinder(options, a, b);
+        }
+    }
 
-            if (pathFuture != null) {
-                pathFuture.cancel(true);
-                pathFuture = null;
-                PathFinder.cancel();
-                sendMessage("Canceled existing pathfinder");
+    private class Thisway implements ICommand {
+        public Thisway(OptionParser parser) {
+            acceptPathfindFlags(parser);
+        }
+        @Override
+        public void accept(List<String> args, OptionSet options) {
+            if (args.size() != 1) {
+                throw new IllegalArgumentException("Expected 1 argument");
             }
-            resetRenderer();
+            int distance = Integer.parseInt(args.get(0));
+            Entity player = Minecraft.getMinecraft().player;
 
-            pathFuture = executor.submit(() -> {
-                final long t1 = System.currentTimeMillis();
-                final long[] longs = PathFinder.pathFind(seed, options.has("fine"), !options.has("noraytrace"), a.getX(), a.getY(), a.getZ(), b.getX(), b.getY(), b.getZ());
-                if (Thread.currentThread().isInterrupted()) {
-                    return;
-                }
-                final long t2 = System.currentTimeMillis();
-                if (longs != null) {
-                    final List<BlockPos> path =  Arrays.stream(longs).mapToObj(BlockPos::fromLong).collect(Collectors.toList());
-                    mc.addScheduledTask(() -> {
-                        registerRenderer(path);
-                        pathFuture = null;
-                        sendMessage(String.format("Found path in %.2f seconds", (t2 - t1) / 1000.0));
-                    });
-                } else {
-                    sendMessage("Path finder returned null");
-                }
-            });
+            float theta = (float) Math.toRadians(player.rotationYaw);
+            double x = player.posX - MathHelper.sin(theta) * distance;
+            double z = player.posZ + MathHelper.cos(theta) * distance;
+            startPathFinder(options, player.getPosition(), new BlockPos(x, 64, z));
+        }
+
+        @Override
+        public String description() {
+            return "Pathfind n blocks in the current direction";
+        }
+
+        @Override
+        public List<String> usage() {
+            return Collections.singletonList("<distance>");
+        }
+        @Override
+        public List<String> optionHelp() {
+            return pathfindHelp();
         }
     }
 
