@@ -129,7 +129,7 @@ private static java.nio.file.Path getResourceOutput(SourceSet sourceSet) {
 
 task downloadBuildTools(type: Download) {
     src ([
-            'https://ziglang.org/download/0.9.1/zig-windows-x86_64-0.9.1.zip',
+            'https://ziglang.org/download/0.10.1/zig-windows-x86_64-0.10.1.zip',
             'https://github.com/Kitware/CMake/releases/download/v3.24.0-rc5/cmake-3.24.0-rc5-windows-x86_64.zip',
             'https://github.com/ninja-build/ninja/releases/download/v1.11.0/ninja-win.zip'
     ])
