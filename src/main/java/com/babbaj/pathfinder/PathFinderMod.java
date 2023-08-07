@@ -3,6 +3,7 @@ package com.babbaj.pathfinder;
 import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
+import dev.babbaj.pathfinder.NetherPathfinder;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
@@ -19,39 +20,9 @@ import java.util.Optional;
 
 @Mod(modid = PathFinderMod.MODID, name = PathFinderMod.NAME, version = PathFinderMod.VERSION)
 public class PathFinderMod {
-    static {
-        try {
-            final String lol = System.mapLibraryName("uwu");
-            final String extension = lol.substring(lol.lastIndexOf('.'));
-            final String library = "native/" + "libnether_pathfinder" + extension;
-            final InputStream libraryStream = PathFinder.class.getClassLoader().getResourceAsStream(library);
-            Objects.requireNonNull(libraryStream, "Failed to find pathfinder library (" + library + ")");
-            final String tempName = System.mapLibraryName("nether_pathfinder_temp");
-            final String[] split = tempName.split("\\.");
-            final Path tempFile = Files.createTempFile(split[0], "." + split[1]);
-            System.out.println("Created temp file at " + tempFile.toAbsolutePath());
-            try {
-                Files.copy(libraryStream, tempFile, StandardCopyOption.REPLACE_EXISTING);
-                System.load(tempFile.toAbsolutePath().toString());
-            } finally {
-                try {
-                    Files.delete(tempFile);
-                } catch (IOException ex) {
-                    System.out.println("trolled");
-                }
-                tempFile.toFile().delete();
-                tempFile.toFile().deleteOnExit();
-            }
-
-            System.out.println("Loaded shared library");
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
-    }
-
     public static final String MODID = "netherpathfinder";
     public static final String NAME = "Nether Pathfinder";
-    public static final String VERSION = "1.0";
+    public static final String VERSION = "1.1";
 
     private static Logger logger;
     public static final Path SEEDS_PATH = Paths.get("pathfinder_seeds.json");
@@ -88,7 +59,10 @@ public class PathFinderMod {
     @Mod.EventHandler
     public void init(FMLInitializationEvent event)
     {
-        // TODO: maintain list of seeds
-        MinecraftForge.EVENT_BUS.register(new ExamplePathfinderControl(readSeedsFromDisk().orElse(new HashMap<>())));
+        if (NetherPathfinder.isThisSystemSupported()) {
+            MinecraftForge.EVENT_BUS.register(new ExamplePathfinderControl(readSeedsFromDisk().orElse(new HashMap<>())));
+        } else {
+            logger.fatal("This system isn't supported lol");
+        }
     }
 }

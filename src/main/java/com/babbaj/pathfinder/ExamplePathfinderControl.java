@@ -2,19 +2,24 @@ package com.babbaj.pathfinder;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
+import dev.babbaj.pathfinder.NetherPathfinder;
+import dev.babbaj.pathfinder.PathSegment;
 import joptsimple.*;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.Tuple;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraftforge.client.event.ClientChatEvent;
-import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.TickEvent;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -23,8 +28,8 @@ public class ExamplePathfinderControl {
 
     private final ExecutorService executor = Executors.newCachedThreadPool();
     private final Map<String, Long> seeds;
-    private PathRenderer renderer;
-    private Future<?> pathFuture;
+    private final List<PathRenderer> renderList = new ArrayList<>();
+    private PathFinder pathFinder;
 
     private final Map<String, Function<OptionParser, ICommand>> commands = ImmutableMap.<String, Function<OptionParser, ICommand>>builder()
         .put("help", Help::new)
@@ -103,27 +108,18 @@ public class ExamplePathfinderControl {
         }
     }
 
-    private void registerRenderer(List<BlockPos> path) {
-        if (this.renderer != null) {
-            disableRenderer();
-            this.renderer.deleteBuffer();
-        }
-        this.renderer = new PathRenderer(path);
-        MinecraftForge.EVENT_BUS.register(this.renderer);
-    }
-
-    private void disableRenderer() {
-        if (this.renderer != null) {
-            MinecraftForge.EVENT_BUS.unregister(this.renderer);
+    private void cancelExistingPathfinder() {
+        if (pathFinder != null) {
+            pathFinder.cancelled.set(true);
+            pathFinder = null;
         }
     }
 
     private void resetRenderer() {
-        if (this.renderer != null) {
-            MinecraftForge.EVENT_BUS.unregister(this.renderer);
-            this.renderer.deleteBuffer();
-            this.renderer = null;
+        for (PathRenderer segment : this.renderList) {
+            segment.deleteBuffer();
         }
+        this.renderList.clear();
     }
 
     private static void sendMessage(String str) {
@@ -142,15 +138,13 @@ public class ExamplePathfinderControl {
 
     private static void acceptPathfindFlags(OptionParser parser) {
         parser.accepts("seed").withRequiredArg();
-        parser.accepts("fine");
         parser.accepts("noraytrace");
     }
 
     private static List<String> pathfindHelp() {
         return Arrays.asList(
                 "--seed <seed>",
-                "--noraytrace  do not simplify the result of the pathfinder",
-                "--fine  high resolution but slower pathfinding"
+                "--noraytrace  do not simplify the result of the pathfinder"
         );
     }
 
@@ -170,37 +164,51 @@ public class ExamplePathfinderControl {
         }
     }
 
-    private void startPathFinder(OptionSet options, BlockPos start, BlockPos end) {
-        checkY(start.getY());
+    private void startPathFinder(final OptionSet options, final BlockPos startIn, final BlockPos end) {
+        checkY(startIn.getY());
         checkY(end.getY());
         final long seed = getSeed(options);
 
-        if (pathFuture != null) {
-            pathFuture.cancel(true);
-            pathFuture = null;
-            PathFinder.cancel();
-            sendMessage("Canceled existing pathfinder");
+        if (this.pathFinder != null) {
+            if (!this.pathFinder.future.isDone()) {
+                this.pathFinder.cancelled.set(true);
+                sendMessage("Canceled existing path finder");
+            }
+            pathFinder = null;
         }
         resetRenderer();
 
-        pathFuture = executor.submit(() -> {
+        final long ctx = NetherPathfinder.newContext(seed);
+        ConcurrentLinkedQueue<List<BlockPos>> queue = new ConcurrentLinkedQueue<>();
+        AtomicBoolean cancelled = new AtomicBoolean();
+        CompletableFuture<Boolean> future = CompletableFuture.supplyAsync(() -> {
             final long t1 = System.currentTimeMillis();
-            final long[] longs = PathFinder.pathFind(seed, options.has("fine"), !options.has("noraytrace"), start.getX(), start.getY(), start.getZ(), end.getX(), end.getY(), end.getZ());
-            if (Thread.currentThread().isInterrupted()) {
-                return;
-            }
+            BlockPos start = startIn;
+            PathSegment segment;
+            do {
+                segment = NetherPathfinder.pathFind(ctx, start.getX(), start.getY(), start.getZ(), end.getX(), end.getY(), end.getZ(), true, 10000);
+                if (cancelled.get()) {
+                    return false;
+                }
+                if (segment == null) {
+                    Minecraft.getMinecraft().addScheduledTask(() -> sendMessage("path finder returned null"));
+                    return false;
+                }
+                long[] refined = !options.has("noraytrace") ? NetherPathfinder.refinePath(ctx, segment.packed) : segment.packed;
+                final List<BlockPos> path = Arrays.stream(refined).mapToObj(BlockPos::fromLong).collect(Collectors.toList());
+                queue.add(path);
+                start = BlockPos.fromLong(segment.packed[segment.packed.length - 1]);
+            } while (!segment.finished);
             final long t2 = System.currentTimeMillis();
-            if (longs != null) {
-                final List<BlockPos> path =  Arrays.stream(longs).mapToObj(BlockPos::fromLong).collect(Collectors.toList());
-                Minecraft.getMinecraft().addScheduledTask(() -> {
-                    registerRenderer(path);
-                    pathFuture = null;
-                    sendMessage(String.format("Found path in %.2f seconds", (t2 - t1) / 1000.0));
-                });
-            } else {
-                sendMessage("Path finder returned null");
-            }
-        });
+            Minecraft.getMinecraft().addScheduledTask(() -> sendMessage(String.format("Found path in %.2f seconds", (t2 - t1) / 1000.0)));
+            return true;
+        }).exceptionally(ex -> {
+            ex.printStackTrace();
+            return false;
+        })
+        .whenCompleteAsync((res, ex) -> NetherPathfinder.freeContext(ctx));
+
+        this.pathFinder = new PathFinder(queue, future, cancelled);
     }
 
     private class PathFind implements ICommand {
@@ -342,10 +350,9 @@ public class ExamplePathfinderControl {
 
         @Override
         public void accept(List<String> args, OptionSet options) {
-            if (pathFuture != null) {
-                pathFuture.cancel(true);
-                pathFuture = null;
-                PathFinder.cancel();
+            if (pathFinder != null) {
+                pathFinder.cancelled.set(true);
+                pathFinder = null;
                 sendMessage("Canceled pathfinder");
             } else {
                 sendMessage("No pathfinder runing");
@@ -368,6 +375,7 @@ public class ExamplePathfinderControl {
 
         @Override
         public void accept(List<String> args, OptionSet options) {
+            cancelExistingPathfinder();
             resetRenderer();
         }
     }
@@ -422,6 +430,40 @@ public class ExamplePathfinderControl {
             } else {
                 printHelp();
             }
+        }
+    }
+
+    private static boolean isInNether() {
+        return Minecraft.getMinecraft().player.dimension == -1;
+    }
+
+    @SubscribeEvent
+    public void onTick(TickEvent.ClientTickEvent event) {
+        if (this.pathFinder != null) {
+            boolean success = this.pathFinder.future.getNow(true);
+            if (!success) {
+                this.pathFinder = null;
+                this.renderList.clear();
+            } else {
+                List<BlockPos> segment = this.pathFinder.resultQueue.poll();
+                if (segment != null) {
+                    this.renderList.add(new PathRenderer(segment));
+                }
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public void onRender(RenderWorldLastEvent event) {
+        if (!isInNether()) return;
+
+        if (!this.renderList.isEmpty()) {
+            PathRenderer.preRender();
+            GlStateManager.glLineWidth(1.f);
+            for (PathRenderer segment : this.renderList) {
+                segment.drawLine(event.getPartialTicks());
+            }
+            PathRenderer.postRender();
         }
     }
 }

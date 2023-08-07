@@ -74,7 +74,7 @@ public class PathRenderer {
         return interpolatedPos(renderEntity, partialTicks);
     }
 
-    static void preRender() {
+    public static void preRender() {
         GlStateManager.pushMatrix();
         GlStateManager.disableTexture2D();
         GlStateManager.enableBlend();
@@ -84,7 +84,7 @@ public class PathRenderer {
         GlStateManager.disableDepth();
     }
 
-    static void postRender() {
+    public static void postRender() {
         GlStateManager.shadeModel(GL11.GL_FLAT);
         GlStateManager.disableBlend();
         GlStateManager.enableAlpha();
@@ -94,31 +94,21 @@ public class PathRenderer {
         GlStateManager.popMatrix();
     }
 
-    private void drawLine(int bufferId, int numVertices, float partialTicks) {
+    public void drawLine(float partialTicks) {
         GlStateManager.color(0, 0, 1.f);
         Vec3d translation = getTranslation(partialTicks).subtract(this.origin);
         GlStateManager.translate(-translation.x, -translation.y, -translation.z);
 
-        OpenGlHelper.glBindBuffer(GL_ARRAY_BUFFER, bufferId);
+        OpenGlHelper.glBindBuffer(GL_ARRAY_BUFFER, this.bufferId);
         GlStateManager.glEnableClientState(GL11.GL_VERTEX_ARRAY);
 
         GlStateManager.glVertexPointer(3, GL11.GL_FLOAT, 0, 0);
-        GlStateManager.glDrawArrays(GL11.GL_LINE_STRIP, 0, numVertices);
+        GlStateManager.glDrawArrays(GL11.GL_LINE_STRIP, 0, this.numVertices);
 
         // post draw
         OpenGlHelper.glBindBuffer(GL_ARRAY_BUFFER, 0);
         GlStateManager.glDisableClientState(GL11.GL_VERTEX_ARRAY);
         GlStateManager.resetColor(); // probably not needed
-    }
-
-    @SubscribeEvent
-    public void onRender(RenderWorldLastEvent event) {
-        if (!isInNether()) return;
-
-        preRender();
-        GlStateManager.glLineWidth(1.f);
-        drawLine(this.bufferId, this.numVertices, event.getPartialTicks());
-        postRender();
     }
 
     // Must be called before throwing away this renderer

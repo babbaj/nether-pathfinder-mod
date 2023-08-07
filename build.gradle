@@ -13,13 +13,17 @@ buildscript {
     }
 }
 
+plugins {
+    id 'com.github.johnrengelman.shadow' version '7.1.1'
+}
+
 apply plugin: 'net.minecraftforge.gradle'
 // Only edit below this line, the above code adds and enables the necessary things for Forge to be setup.
 apply plugin: 'eclipse'
 apply plugin: 'maven-publish'
 apply plugin: "de.undercouch.download"
 
-version = '1.0'
+version = '1.1'
 group = 'com.babbaj.netherpathfinder'
 archivesBaseName = 'nether-pathfinder'
 
@@ -49,15 +53,13 @@ minecraft {
             // Recommended logging level for the console
             property 'forge.logging.console.level', 'debug'
         }
+    }
+}
 
-        server {
-
-            // Recommended logging data for a userdev environment
-            property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
-
-            // Recommended logging level for the console
-            property 'forge.logging.console.level', 'debug'
-        }
+repositories {
+    maven {
+        name = 'babbaj-maven'
+        url = 'https://babbaj.github.io/maven/'
     }
 }
 
@@ -67,23 +69,7 @@ dependencies {
     // The userdev artifact is a special name and will get all sorts of transformations applied to it.
     minecraft 'net.minecraftforge:forge:1.12.2-14.23.5.2854'
 
-    // You may put jars on which you depend on in ./libs or you may define them like so..
-    // compile "some.group:artifact:version:classifier"
-    // compile "some.group:artifact:version"
-
-    // Real examples
-    // compile 'com.mod-buildcraft:buildcraft:6.0.8:dev'  // adds buildcraft to the dev env
-    // compile 'com.googlecode.efficient-java-matrix-library:ejml:0.24' // adds ejml to the dev env
-
-    // The 'provided' configuration is for optional dependencies that exist at compile-time but might not at runtime.
-    // provided 'com.mod-buildcraft:buildcraft:6.0.8:dev'
-
-    // These dependencies get remapped to your current MCP mappings
-    // deobf 'com.mod-buildcraft:buildcraft:6.0.8:dev'
-
-    // For more info...
-    // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
-    // http://www.gradle.org/docs/current/userguide/dependency_management.html
+    implementation 'dev.babbaj:nether-pathfinder:1.0'
 
 }
 
@@ -123,124 +109,12 @@ publishing {
     }
 }
 
-private static java.nio.file.Path getResourceOutput(SourceSet sourceSet) {
-    return sourceSet.getOutput().getResourcesDir().toPath();
-}
+build.dependsOn shadowJar
 
-task downloadBuildTools(type: Download) {
-    src ([
-            'https://ziglang.org/download/0.10.1/zig-windows-x86_64-0.10.1.zip',
-            'https://github.com/Kitware/CMake/releases/download/v3.24.0-rc5/cmake-3.24.0-rc5-windows-x86_64.zip',
-            'https://github.com/ninja-build/ninja/releases/download/v1.11.0/ninja-win.zip'
-    ])
-    dest new File(project.getBuildDir(), "downloadBuildTools")
-    overwrite false
-}
+shadowJar {
+    archiveFileName = "nether-pathfinder-${archiveVersion.get()}.jar" // overwrite the non shadow jar
 
-task unpackBuildTools(dependsOn: downloadBuildTools, type: Copy) {
-    from zipTree(new File(downloadBuildTools.dest, 'cmake-3.24.0-rc5-windows-x86_64.zip'))
-    from zipTree(new File(downloadBuildTools.dest, 'ninja-win.zip'))
-    from zipTree(new File(downloadBuildTools.dest, 'zig-windows-x86_64-0.10.1.zip'))
-
-    into new File(project.getBuildDir(), "unpackedBuildTools")
-
-    doLast { t ->
-        def base = t.outputs.files.getSingleFile().toPath()
-        Files.write(base.resolve("zigcc.bat"), ("@echo off\n" + getWintardZig().absolutePath + " \"cc\" %*").getBytes())
-        Files.write(base.resolve("zigcpp.bat"), ("@echo off\n" + getWintardZig().absolutePath + " \"c++\" %*").getBytes())
+    dependencies {
+        include(dependency('dev.babbaj:nether-pathfinder:1.0'))
     }
 }
-
-def getWintardCmake() {
-    return new File(unpackBuildTools.outputs.files.getSingleFile(), "cmake-3.24.0-rc5-windows-x86_64/bin/cmake.exe")
-}
-
-def getWintardNinja() {
-    return new File(unpackBuildTools.outputs.files.getSingleFile(), "ninja.exe")
-}
-
-def getWintardZig() {
-    return new File(unpackBuildTools.outputs.files.getSingleFile(), "zig-windows-x86_64-0.10.1/zig.exe")
-}
-
-def getWintardZigCC() {
-    return new File(unpackBuildTools.outputs.files.getSingleFile(), "zigcc.bat")
-}
-
-def getWintardZigCXX() {
-    return new File(unpackBuildTools.outputs.files.getSingleFile(), "zigcpp.bat")
-}
-
-final String compileLibraryOutput = 'compilePathfinderLibrary';
-
-import org.apache.tools.ant.taskdefs.condition.Os
-
-import java.nio.file.Files
-
-task cmakePathfinderLibrary(type: Exec) {
-    final File outputDir = new File(project.getBuildDir(), compileLibraryOutput)
-    outputDir.mkdirs()
-
-    workingDir outputDir
-    final File sourceDir = new File(getProjectDir(), 'nether-pathfinder')
-
-    String cmakeExe
-    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-        dependsOn unpackBuildTools
-        cmakeExe = getWintardCmake().toString()
-    } else {
-        cmakeExe = 'cmake' // $PATH
-    }
-
-    def cmakeArgs = [
-            cmakeExe, sourceDir.toString(),
-            '-G', 'Ninja'
-    ]
-    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-        cmakeArgs.addAll([
-                '-DCMAKE_MAKE_PROGRAM=' + getWintardNinja().toString(),
-                '-DCMAKE_C_COMPILER=' + getWintardZigCC().toString().replace('\\', '/'),
-                '-DCMAKE_CXX_COMPILER=' + getWintardZigCXX().toString().replace('\\', '/')
-        ])
-        environment("CXXFLAGS", "-march=x86_64_v2") // "drop in replacement"
-    } else {
-        cmakeArgs.add("-DCMAKE_CXX_COMPILER=clang++")
-        cmakeArgs.add("-DCMAKE_C_COMPILER=clang") // not used
-        // abseil doesnt work on windows because of a pthread issue, might possibly be already fixed upstream
-        //cmakeArgs.add('-DUSE_ABSEIL=True')
-    }
-    cmakeArgs.addAll([
-            '-DSHARED_LIBRARY=True',
-            '-DCMAKE_BUILD_TYPE=Release'
-    ])
-    commandLine cmakeArgs
-}
-
-task makePathfinderLibrary(type: Exec) {
-    dependsOn cmakePathfinderLibrary
-
-    final File outputDir = new File(project.getBuildDir(), compileLibraryOutput)
-
-    workingDir outputDir
-    String ninjaExe;
-    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-        ninjaExe = getWintardNinja()
-    } else {
-        ninjaExe = 'ninja' // $PATH
-    }
-    commandLine ninjaExe, '-j', Runtime.getRuntime().availableProcessors()
-}
-
-task moveLibraryToResources(type: Copy) {
-    dependsOn makePathfinderLibrary
-
-    from (new File(project.getBuildDir(), compileLibraryOutput)) {
-        include '*.dll'
-        include '*.so'
-        include '*.dylib'
-    }
-    into getResourceOutput(sourceSets.main).resolve('native')
-    // TODO: also rename?
-}
-
-jar.dependsOn(moveLibraryToResources)
