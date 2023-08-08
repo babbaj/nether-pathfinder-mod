@@ -69,7 +69,7 @@ dependencies {
     // The userdev artifact is a special name and will get all sorts of transformations applied to it.
     minecraft 'net.minecraftforge:forge:1.12.2-14.23.5.2854'
 
-    implementation 'dev.babbaj:nether-pathfinder:1.0'
+    implementation 'dev.babbaj:nether-pathfinder:1.1'
 
 }
 
@@ -115,6 +115,6 @@ shadowJar {
     archiveFileName = "nether-pathfinder-${archiveVersion.get()}.jar" // overwrite the non shadow jar
 
     dependencies {
-        include(dependency('dev.babbaj:nether-pathfinder:1.0'))
+        include(dependency('dev.babbaj:nether-pathfinder:1.1'))
     }
 }

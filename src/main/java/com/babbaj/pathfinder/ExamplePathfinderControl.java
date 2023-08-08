@@ -186,7 +186,7 @@ public class ExamplePathfinderControl {
             BlockPos start = startIn;
             PathSegment segment;
             do {
-                segment = NetherPathfinder.pathFind(ctx, start.getX(), start.getY(), start.getZ(), end.getX(), end.getY(), end.getZ(), true, 10000);
+                segment = NetherPathfinder.pathFind(ctx, start.getX(), start.getY(), start.getZ(), end.getX(), end.getY(), end.getZ(), true, !options.has("noraytrace"), 10000);
                 if (cancelled.get()) {
                     return false;
                 }
@@ -194,8 +194,10 @@ public class ExamplePathfinderControl {
                     Minecraft.getMinecraft().addScheduledTask(() -> sendMessage("path finder returned null"));
                     return false;
                 }
-                long[] refined = !options.has("noraytrace") ? NetherPathfinder.refinePath(ctx, segment.packed) : segment.packed;
-                final List<BlockPos> path = Arrays.stream(refined).mapToObj(BlockPos::fromLong).collect(Collectors.toList());
+                final List<BlockPos> path = Arrays.stream(segment.packed).mapToObj(BlockPos::fromLong).collect(Collectors.toList());
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ex) {}
                 queue.add(path);
                 start = BlockPos.fromLong(segment.packed[segment.packed.length - 1]);
             } while (!segment.finished);
