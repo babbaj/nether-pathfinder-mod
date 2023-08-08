@@ -195,9 +195,6 @@ public class ExamplePathfinderControl {
                     return false;
                 }
                 final List<BlockPos> path = Arrays.stream(segment.packed).mapToObj(BlockPos::fromLong).collect(Collectors.toList());
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException ex) {}
                 queue.add(path);
                 start = BlockPos.fromLong(segment.packed[segment.packed.length - 1]);
             } while (!segment.finished);
