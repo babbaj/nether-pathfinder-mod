@@ -1,3 +1,5 @@
+**This repo has been deprecated in favor of baritone and will not be updated past forge 1.12**
+
 # Nether Pathfinder Mod
 Forge mod that provides a command line interface and renderer for [Nether Pathfinder](https://github.com/babbaj/nether-pathfinder).
 
@@ -16,19 +18,17 @@ pathfind: Run the pathfinder (prepend '~' for relative coords)
 ;pathfind <x> <y> <z>
 --seed <seed>
 --noraytrace  do not simplify the result of the pathfinder
---fine  high resolution but slower pathfinding
 
 thisway: Pathfind n blocks in the current direction
 ;thisway <distance>
 --seed <seed>
 --noraytrace  do not simplify the result of the pathfinder
---fine  high resolution but slower pathfinding
 
 addseed: Set the seed for the current server
 ;addseed <seed>
 --ip <String>
 
-cancel: Stop the current pathfinding thread (will still run in the background)
+cancel: Stop the current pathfinding thread
 
 reset: Stop rendering the path
 ```

@@ -339,7 +339,7 @@ public class ExamplePathfinderControl {
 
         @Override
         public String description() {
-            return "Stop the current pathfinding thread (will still run in the background)";
+            return "Stop the current pathfinding thread";
         }
 
         @Override
