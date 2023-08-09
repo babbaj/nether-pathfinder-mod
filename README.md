@@ -33,13 +33,3 @@ cancel: Stop the current pathfinding thread
 reset: Stop rendering the path
 ```
 By default it will use the seed for 2b2t.
-
-## Building
-For windows, tools for building the native code are automatically downloaded by the build script. There is a known weird problem with zig cc's cache causing the build to fail, the recommended solution for that is to uninstall windows.
-
-For linux you need cmake and at least clang 13.
-
-## Performance
-Because of a limitation in the standard library shipped with zig cc, there is no multithreading done in the windows builds.
-
-In Linux on a Ryzen 5900X, it pathfinds at about 25,000 blocks/second
